@@ -5,6 +5,7 @@ type Key
     = Space
     | ArrowLeft
     | ArrowRight
+    | Restart
     | Unknown
 
 
@@ -19,6 +20,9 @@ fromCode keyCode =
 
         39 ->
             ArrowRight
+
+        82 ->
+            Restart
 
         _ ->
             Unknown

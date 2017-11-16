@@ -8,6 +8,8 @@ import Random
 import Svg exposing (..)
 import Svg.Attributes exposing (..)
 import Time exposing (Time)
+import Tuple
+import Collision2D
 
 
 main : Program Never Model Msg
@@ -34,6 +36,7 @@ type alias Model =
     , seamineLocations : List ( Float, Float )
     , seamineDropSpeed : Float
     , gameOver : Bool
+    , score : Int
     }
 
 
@@ -46,8 +49,9 @@ model =
     , pingGrowth = 0.0
     , pingStrength = 0.0
     , seamineLocations = []
-    , seamineDropSpeed = 3.0
+    , seamineDropSpeed = 1.0
     , gameOver = False
+    , score = 0
     }
 
 
@@ -104,11 +108,20 @@ updateFrame dt model =
                 |> checkForCollision
                 |> updateSeamineLocations
                 |> clearOldMines
+                |> incrementScore
     in
-    if List.length model.seamineLocations < 5 || round dt % 100 == 0 then
-        ( newModel, Random.generate SpawnMine randomPoint )
+        if List.length model.seamineLocations < 5 || round dt % 100 == 0 then
+            ( newModel, Random.generate SpawnMine randomPoint )
+        else
+            ( newModel, Cmd.none )
+
+
+incrementScore : Model -> Model
+incrementScore model =
+    if not model.gameOver then
+        { model | score = model.score + 1 }
     else
-        ( newModel, Cmd.none )
+        model
 
 
 updateSeamineLocations : Model -> Model
@@ -117,7 +130,7 @@ updateSeamineLocations model =
         newSeaminLocations =
             List.map2 updateSeamineLocation model.seamineLocations (List.repeat (List.length model.seamineLocations) model.seamineDropSpeed)
     in
-    { model | seamineLocations = newSeaminLocations }
+        { model | seamineLocations = newSeaminLocations }
 
 
 updateSeamineLocation : ( Float, Float ) -> Float -> ( Float, Float )
@@ -134,7 +147,7 @@ clearOldMines model =
         newModel =
             { model | seamineLocations = newSeamines }
     in
-    newModel
+        newModel
 
 
 formatSeamineLocation : ( Float, Float ) -> Float -> ( Float, Float )
@@ -184,14 +197,21 @@ seamineCollisionCheck model ( horizontal, vertical ) =
 
         seamine_right =
             horizontal + 15
+
+        submarineCircle =
+            Collision2D.circle model.position 400 50
+
+        seamineCircle =
+            Collision2D.circle horizontal vertical 30
     in
-    if
-        ((sub_top < seamine_bottom && sub_bottom > seamine_bottom) || (sub_bottom > seamine_top && sub_bottom < seamine_bottom))
-            && ((sub_right > seamine_left && seamine_right < seamine_right) || (sub_left < seamine_right && sub_left > seamine_left))
-    then
-        True
-    else
-        False
+        if
+            Collision2D.circleToCircle submarineCircle seamineCircle
+            -- ((sub_top < seamine_bottom && sub_bottom > seamine_bottom) || (sub_bottom > seamine_top && sub_bottom < seamine_bottom))
+            --     && ((sub_right > seamine_left && seamine_right < seamine_right) || (sub_left < seamine_right && sub_left > seamine_left))
+        then
+            True
+        else
+            False
 
 
 seaminesCollisionCheck : Model -> List Bool
@@ -226,7 +246,11 @@ keyDown keyCode model =
         Space ->
             -- incrementShotsFired model
             if model.pingActivated == False then
-                { model | pingActivated = True, pingStrength = 1 }
+                { model
+                    | pingActivated = True
+                    , pingStrength = 1
+                    , seamineDropSpeed = model.seamineDropSpeed + 1
+                }
             else
                 model
 
@@ -235,6 +259,12 @@ keyDown keyCode model =
 
         ArrowRight ->
             updateVelocity 1.0 model
+
+        Restart ->
+            if model.gameOver == True then
+                Tuple.first init
+            else
+                model
 
         _ ->
             model
@@ -264,15 +294,26 @@ updateVelocity newVelocity model =
 
 view : Model -> Html Msg
 view model =
-    div []
-        [ div []
-            -- [ Html.text (toString model) ]
-            -- , div []
-            [ Html.text "Instructions: Left, Right, Space to Ping" ]
-        , svg
-            [ width "650", height "650", viewBox "0 0 650 650" ]
-            (displayElements model)
-        ]
+    let
+        instructions =
+            ("Instructions: Left, Right, Space to Ping. Score: "
+                ++ toString model.score
+                ++ if model.gameOver == True then
+                    " Press R to restart."
+                   else
+                    ""
+            )
+    in
+        div []
+            [ div []
+                -- [ Html.text (toString model) ]
+                -- , div []
+                [ Html.text instructions
+                ]
+            , svg
+                [ width "650", height "650", viewBox "0 0 650 650" ]
+                (displayElements model)
+            ]
 
 
 displayElements : Model -> List (Svg Msg)
