@@ -36,6 +36,7 @@ type alias Model =
     , seamineLocations : List ( Float, Float )
     , seamineDropSpeed : Float
     , gameOver : Bool
+    , score : Int
     }
 
 
@@ -50,6 +51,7 @@ model =
     , seamineLocations = []
     , seamineDropSpeed = 1.0
     , gameOver = False
+    , score = 0
     }
 
 
@@ -106,11 +108,20 @@ updateFrame dt model =
                 |> checkForCollision
                 |> updateSeamineLocations
                 |> clearOldMines
+                |> incrementScore
     in
         if List.length model.seamineLocations < 5 || round dt % 100 == 0 then
             ( newModel, Random.generate SpawnMine randomPoint )
         else
             ( newModel, Cmd.none )
+
+
+incrementScore : Model -> Model
+incrementScore model =
+    if not model.gameOver then
+        { model | score = model.score + 1 }
+    else
+        model
 
 
 updateSeamineLocations : Model -> Model
@@ -285,7 +296,9 @@ view : Model -> Html Msg
 view model =
     let
         instructions =
-            ("Instructions: Left, Right, Space to Ping."
+            ("Instructions: Left, Right, Space to Ping. Score: "
+                ++ toString model.score
+                ++ " "
                 ++ if model.gameOver == True then
                     " Press R to restart."
                    else
