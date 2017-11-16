@@ -298,7 +298,6 @@ view model =
         instructions =
             ("Instructions: Left, Right, Space to Ping. Score: "
                 ++ toString model.score
-                ++ " "
                 ++ if model.gameOver == True then
                     " Press R to restart."
                    else
